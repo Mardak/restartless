@@ -34,6 +34,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+Cu.import("resource://gre/modules/AddonManager.jsm");
+
 /**
  * Handle the add-on being activated on install/enable
  */
@@ -42,7 +45,10 @@ function startup(data, reason) {}
 /**
  * Handle the add-on being deactivated on uninstall/disable
  */
-function shutdown(data, reason) {}
+function shutdown({id}, reason) AddonManager.getAddonByID(id, function(addon) {
+  // Easily reload script: auto-enable after disabling
+  addon.userDisabled = false;
+})
 
 /**
  * Handle the add-on being installed
