@@ -34,6 +34,60 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+Cu.import("resource://gre/modules/Services.jsm");
+
+/**
+ * Apply a callback to each open and new browser windows.
+ *
+ * @usage watchWindows(callback): Apply a callback to each browser window.
+ * @param [function] callback: 1-parameter function that gets a browser window.
+ */
+function watchWindows(callback) {
+  // Wrap the callback in a function that ignores failures
+  function watcher(window) {
+    try {
+      callback(window);
+    }
+    catch(ex) {}
+  }
+
+  // Wait for the window to finish loading before running the callback
+  function runOnLoad(window) {
+    // Listen for one load event before checking the window type
+    window.addEventListener("load", function() {
+      window.removeEventListener("load", arguments.callee, false);
+
+      // Now that the window has loaded, only handle browser windows
+      let doc = window.document.documentElement;
+      if (doc.getAttribute("windowtype") == "navigator:browser")
+        watcher(window);
+    }, false);
+  }
+
+  // Add functionality to existing windows
+  let browserWindows = Services.wm.getEnumerator("navigator:browser");
+  while (browserWindows.hasMoreElements()) {
+    // Only run the watcher immediately if the browser is completely loaded
+    let browserWindow = browserWindows.getNext();
+    if (browserWindow.document.readyState == "complete")
+      watcher(browserWindow);
+    // Wait for the window to load before continuing
+    else
+      runOnLoad(browserWindow);
+  }
+
+  // Watch for new browser windows opening then wait for it to load
+  function windowWatcher(subject, topic) {
+    if (topic == "domwindowopened")
+      runOnLoad(subject);
+  }
+  Services.ww.registerNotification(windowWatcher);
+
+  // Make sure to stop watching for windows if we're unloading
+  unload(function() Services.ww.unregisterNotification(windowWatcher));
+}
+
 /**
  * Save callbacks to run when unloading. Optionally scope the callback to a
  * container, e.g., window. Provide a way to run all the callbacks.
