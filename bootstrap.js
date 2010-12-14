@@ -151,6 +151,24 @@ getString.init = function(addon, getAlternate) {
 function startup({id}, reason) AddonManager.getAddonByID(id, function(addon) {
   // Initialize the strings for this add-on
   getString.init(addon);
+
+  // Get some input/output from the current tab's window
+  let gBrowser = Services.wm.getMostRecentWindow("navigator:browser").gBrowser;
+  let {alert, confirm, prompt} = gBrowser.selectedBrowser.contentWindow;
+
+  // Ask the user for some information
+  let name = prompt(getString("askName"));
+  let money;
+  do {
+    // Get a number to pick what plural form of money to use
+    let amount = Number(prompt(getString("howMany")));
+    // Use the number to 1) insert it into the string and 2) pick the form
+    money = getString("money", amount, amount);
+  } while (!confirm(getString("confirm", money)));
+
+  // Prepare an array to insert multiple values (the name and the money string)
+  let pair = [name, money];
+  alert(getString("hereHave", pair) + "\n" + getString("hopeEnough", pair));
 })
 
 /**
