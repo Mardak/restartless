@@ -34,6 +34,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+Cu.import("resource://gre/modules/Services.jsm");
+
 /**
  * Save callbacks to run when unloading. Optionally scope the callback to a
  * container, e.g., window. Provide a way to run all the callbacks.
@@ -94,9 +97,32 @@ function unload(callback, container) {
 }
 
 /**
+ * Shift the window's main browser content down and right a bit
+ */
+function shiftBrowser(window) {
+  let style = window.gBrowser.style;
+
+  // Save the original margin values to restore them later
+  let origTop = style.marginTop;
+  let origLeft = style.marginLeft;
+
+  // Push the main browser down and right
+  style.marginTop = style.marginLeft = "50px";
+
+  // Restore the original position when the add-on is unloaded
+  unload(function() {
+    style.marginTop = origTop;
+    style.marginLeft = origLeft;
+  }, window);
+}
+
+/**
  * Handle the add-on being activated on install/enable
  */
-function startup(data, reason) {}
+function startup(data, reason) {
+  // Shift the currently selected browser window
+  shiftBrowser(Services.wm.getMostRecentWindow("navigator:browser"));
+}
 
 /**
  * Handle the add-on being deactivated on uninstall/disable
