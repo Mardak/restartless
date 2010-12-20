@@ -1,0 +1,3 @@
+This repository contains various helper functions implemented on separate git branches.
+
+Example code is also provided that makes use of these helper functions with some dummy examples. Each example is on its own branch that begin with "examples/".
