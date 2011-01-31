@@ -66,7 +66,14 @@ Cu.import("resource://gre/modules/Services.jsm");
  */
 function getString(name, args, plural) {
   // Use the cached bundle to retrieve the string
-  let str = getString.bundle.GetStringFromName(name);
+  let str;
+  try {
+    str = getString.bundle.GetStringFromName(name);
+  }
+  // Use the fallback in-case the string isn't localized
+  catch(ex) {
+    str = getString.fallback.GetStringFromName(name);
+  }
 
   // Pick out the correct plural form if necessary
   if (plural != null)
@@ -95,28 +102,44 @@ function getString(name, args, plural) {
  *
  * @usage getString.init(addon): Load properties file for the add-on.
  * @param [object] addon: Add-on object from AddonManager
+ *
+ * @usage getString.init(addon, getAlternate): Load properties with alternate.
+ * @param [object] addon: Add-on object from AddonManager
+ * @param [function] getAlternate: Convert a locale to an alternate locale
  */
-getString.init = function(addon) {
+getString.init = function(addon, getAlternate) {
+  // Set a default get alternate function if it doesn't exist
+  if (typeof getAlternate != "function")
+    getAlternate = function() "en-US";
+
   // Get the bundled properties file for the app's locale
-  let propertyFile;
-  function getPropertyPath(locale) "locales/" + locale + ".properties";
-  try {
-    let locale = Cc["@mozilla.org/chrome/chrome-registry;1"].
-      getService(Ci.nsIXULChromeRegistry).
-      getSelectedLocale("global");
-    propertyFile = addon.getResourceURI(getPropertyPath(locale));
-  }
-  catch(ex) {
-    // Not localized for the current locale; default to en-US
-    propertyFile = addon.getResourceURI(getPropertyPath("en-US"));
+  function getBundle(locale) {
+    let propertyPath = "locales/" + locale + ".properties";
+    let propertyFile = addon.getResourceURI(propertyPath);
+
+    // Get a bundle and test if it's able to do simple things
+    try {
+      let bundle = Services.strings.createBundle(propertyFile.spec);
+      bundle.getSimpleEnumeration();
+      return bundle;
+    }
+    catch(ex) {}
+
+    // The locale must not exist, so give nothing
+    return null;
   }
 
-  // Save the bundle for getting strings
-  getString.bundle = Services.strings.createBundle(propertyFile.spec);
+  // Use the current locale or the alternate as the primary bundle
+  let locale = Cc["@mozilla.org/chrome/chrome-registry;1"].
+    getService(Ci.nsIXULChromeRegistry).getSelectedLocale("global");
+  getString.bundle = getBundle(locale) || getBundle(getAlternate(locale));
+
+  // Create a fallback in-case a string is missing
+  getString.fallback = getBundle("en-US");
 
   // Get the appropriate plural form getter
   Cu.import("resource://gre/modules/PluralForm.jsm");
-  let rule = getString.bundle.GetStringFromName("pluralRule");
+  let rule = getString("pluralRule");
   [getString.plural] = PluralForm.makeGetter(rule);
 }
 
