@@ -34,10 +34,25 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const global = this;
+
+const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+Cu.import("resource://gre/modules/AddonManager.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
+
 /**
  * Handle the add-on being activated on install/enable
  */
-function startup(data, reason) {}
+function startup({id}) AddonManager.getAddonByID(id, function(addon) {
+  // Load various javascript includes for helper functions
+  ["constants", "math", "numobj"].forEach(function(fileName) {
+    let fileURI = addon.getResourceURI("scripts/" + fileName + ".js");
+    Services.scriptloader.loadSubScript(fileURI.spec, global);
+  });
+
+  let {alert} = Services.wm.getMostRecentWindow("navigator:browser");
+  alert(new NumObj(add(ONE, TWO)).times(FOURTEEN));
+});
 
 /**
  * Handle the add-on being deactivated on uninstall/disable
