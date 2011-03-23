@@ -34,15 +34,54 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const {classes: Cc, interfaces: Ci, manager: Cm, utils: Cu} = Components;
+
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+
+// Set various values for an about:ed service
+const EdContract = "@mozilla.org/network/protocol/about;1?what=ed";
+const EdDescription = "About Ed";
+const EdUUID = Components.ID("6b20c507-9257-40c3-aa7c-ac7d63cc6719");
+
+// Create a factory that gives the about:ed service
+let EdFactory = {
+  createInstance: function(outer, iid) {
+    if (outer != null)
+      throw Cr.NS_ERROR_NO_AGGREGATION;
+    return AboutEd.QueryInterface(iid);
+  }
+};
+
+// Implement about:ed
+let AboutEd = {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIAboutModule]),
+
+  getURIFlags: function(aURI) {
+    return 0;
+  },
+
+  newChannel: function(aURI) {
+    let uri = Services.io.newURI("http://ed.agadak.net/", null, null);
+    return Services.io.newChannelFromURI(uri);
+  }
+};
+
 /**
  * Handle the add-on being activated on install/enable
  */
-function startup(data, reason) {}
+function startup(data, reason) {
+  Cm.QueryInterface(Ci.nsIComponentRegistrar).
+    registerFactory(EdUUID, EdDescription, EdContract, EdFactory);
+}
 
 /**
  * Handle the add-on being deactivated on uninstall/disable
  */
-function shutdown(data, reason) {}
+function shutdown(data, reason) {
+  Cm.QueryInterface(Ci.nsIComponentRegistrar).
+    unregisterFactory(EdUUID, EdFactory);
+}
 
 /**
  * Handle the add-on being installed
